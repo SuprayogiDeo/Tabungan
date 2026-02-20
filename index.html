@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, theme-color=#4f46e5">
+    <title>Tabungan Bersama</title>
+    
+    <!-- Dynamic PWA Manifest -->
+    <link rel="manifest" id="manifest-link">
+    <!-- Icon Aplikasi Utama -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2830/2830284.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; } 
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .app-container { max-width: 480px; margin: 0 auto; background-color: #f8fafc; min-height: 100vh; position: relative; box-shadow: 0 0 40px rgba(0,0,0,0.08); overflow-x: hidden; }
+        .toggle-checkbox:checked { right: 0; border-color: #4f46e5; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #4f46e5; }
+        .bg-premium { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); }
+        .celeb-ping { animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
+        .toast-visible { opacity: 1 !important; transform: translate(-50%, -20px) !important; }
+        .modal-active { transform: translateY(0) !important; }
+        
+        /* Avatar selection style */
+        .color-btn.selected { border-color: #1e293b; transform: scale(1.1); border-width: 4px; }
+        .emoji-btn.selected { border-color: #4f46e5; background-color: #eef2ff; transform: scale(1.1); border-width: 2px; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-indigo-200">
+
+    <div class="app-container flex flex-col h-screen relative">
+        <!-- Toast Notification -->
+        <div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 translate-y-4 bg-slate-900 text-white px-6 py-3 rounded-full text-sm font-bold shadow-xl opacity-0 transition-all duration-300 z-[100] whitespace-nowrap pointer-events-none">
+            Pesan
+        </div>
+
+        <!-- VIEW 1: HOME -->
+        <main id="view-home" class="flex-1 overflow-y-auto no-scrollbar pb-24">
+            <div class="px-6 pt-10 pb-4 bg-white relative">
+                <div class="flex items-center gap-4">
+                    <div id="home-avatar" class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold shadow-inner transition-all duration-500"></div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selamat datang,</p>
+                        <p id="home-username" class="font-extrabold text-slate-900 text-lg tracking-tight">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 pb-10 bg-white rounded-b-[2.5rem] shadow-sm border-b border-slate-100">
+                <div class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-600 rounded-[2rem] p-7 shadow-xl shadow-indigo-200/50 text-white relative overflow-hidden">
+                    <div class="relative z-10 flex justify-between items-center mb-1">
+                        <p class="text-indigo-100 font-medium text-xs opacity-80 uppercase tracking-widest">Total Saldo</p>
+                        <button onclick="window.toggleBalance()" class="p-2 bg-white/10 rounded-full">
+                            <i id="eye-icon" data-lucide="eye" class="w-4 h-4 text-white"></i>
+                        </button>
+                    </div>
+                    <h1 id="total-balance" class="text-4xl font-black tracking-tight mb-6" data-value="0">Rp 0</h1>
+                    
+                    <div class="relative z-10 pt-5 border-t border-white/10 flex justify-between items-center">
+                        <div>
+                            <p class="text-[9px] uppercase font-black text-indigo-200 mb-1">Masuk (Bln Ini)</p>
+                            <p id="mutasi-in" class="font-bold text-sm text-emerald-300">Rp 0</p>
+                        </div>
+                        <div class="w-px h-6 bg-white/10"></div>
+                        <div class="text-right">
+                            <p class="text-[9px] uppercase font-black text-indigo-200 mb-1">Keluar (Bln Ini)</p>
+                            <p id="mutasi-out" class="font-bold text-sm text-rose-300">Rp 0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="font-black text-slate-900 tracking-tight">Tujuan Tabungan</h2>
+                    <button onclick="window.switchView('view-create')" class="bg-indigo-50 text-indigo-600 p-2 rounded-full active:scale-90 transition-transform">
+                        <i data-lucide="plus" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div id="rooms-container" class="space-y-4"></div>
+            </div>
+        </main>
+
+        <!-- VIEW 2: DETAIL -->
+        <main id="view-detail" class="flex-1 overflow-y-auto no-scrollbar pb-32 bg-slate-50 hidden">
+            <div class="sticky top-0 bg-white/90 backdrop-blur-md z-10 px-5 py-4 border-b border-slate-200 flex items-center gap-3">
+                <button onclick="window.historyBackOverride('view-home')" class="p-2 text-slate-600 active:scale-90"><i data-lucide="chevron-left" class="w-7 h-7"></i></button>
+                <h1 id="detail-title" class="font-bold text-lg text-slate-800 truncate">Detail</h1>
+            </div>
+            <div class="p-8 bg-white border-b border-slate-200 text-center">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Tersedia</p>
+                <h2 id="detail-balance" class="text-4xl font-black text-slate-900 tracking-tight">Rp 0</h2>
+                <div id="detail-target-container" class="mt-8 bg-slate-50 p-5 rounded-3xl text-left hidden border border-slate-100">
+                    <div class="flex justify-between text-xs font-bold mb-3">
+                        <span class="text-slate-400 uppercase">Progres Target</span>
+                        <span id="detail-progress-text" class="text-indigo-600">0 / 0</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-3">
+                        <div id="detail-progress-bar" class="bg-indigo-600 h-3 rounded-full transition-all duration-1000 shadow-sm" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6">
+                <h3 class="font-black text-slate-900 mb-6 flex items-center gap-2"><i data-lucide="history" class="w-5 h-5"></i> Riwayat Transaksi</h3>
+                <div id="detail-history-list" class="relative border-l-2 border-indigo-100 ml-3 space-y-8 pb-4"></div>
+            </div>
+            <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-200 max-w-[480px] mx-auto z-20 flex gap-4">
+                <button onclick="window.openTransactionModal('tarik')" class="flex-1 py-4 bg-rose-50 text-rose-600 font-black rounded-2xl active:bg-rose-100 transition-colors">Tarik</button>
+                <button onclick="window.openTransactionModal('nabung')" class="flex-1 py-4 bg-premium text-white font-black rounded-2xl shadow-xl shadow-indigo-200 active:opacity-90">Nabung</button>
+            </div>
+        </main>
+
+        <!-- VIEW 3: CREATE -->
+        <main id="view-create" class="flex-1 overflow-y-auto no-scrollbar pb-32 bg-white hidden">
+             <div class="sticky top-0 bg-white z-10 px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+                <button onclick="window.historyBackOverride('view-home')" class="p-2 text-slate-600"><i data-lucide="x" class="w-7 h-7"></i></button>
+                <h1 class="font-bold text-lg text-slate-800">Buat Tabungan</h1>
+            </div>
+            <div class="p-6 space-y-8">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-1">Nama Tabungan / Tujuan</label>
+                    <input type="text" id="create-name" placeholder="Contoh: Beli Laptop" class="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-slate-900 transition-all">
+                </div>
+                <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm font-bold text-slate-800">Pasang Target Dana?</p>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Membantu memantau progres %</p>
+                        </div>
+                        <div class="relative inline-block w-12 h-6">
+                            <input type="checkbox" id="toggle-target" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-200 transition-all duration-300" onchange="document.getElementById('target-input-div').classList.toggle('hidden')"/>
+                            <label for="toggle-target" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-200 cursor-pointer transition-colors duration-300"></label>
+                        </div>
+                    </div>
+                    <div id="target-input-div" class="hidden mt-6 relative">
+                        <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl">Rp</span>
+                        <input type="text" id="create-target" inputmode="numeric" placeholder="0" class="money-input w-full p-5 pl-14 bg-white border border-slate-200 rounded-2xl font-black text-2xl text-slate-900 shadow-inner outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="fixed bottom-0 left-0 right-0 p-6 bg-white max-w-[480px] mx-auto z-20">
+                <button onclick="window.handleCreateRoom()" class="w-full py-5 bg-premium text-white font-black text-lg rounded-[1.5rem] shadow-2xl shadow-indigo-200 active:scale-95 transition-transform">Buat Tabungan Sekarang</button>
+            </div>
+        </main>
+
+        <!-- VIEW 4: PROFILE -->
+        <main id="view-profile" class="flex-1 overflow-y-auto no-scrollbar pb-24 bg-slate-50 hidden">
+            <div class="p-8 bg-white border-b border-slate-200 text-center relative">
+                <div class="relative inline-block mx-auto mb-4">
+                    <div id="profile-avatar" class="w-24 h-24 rounded-full flex justify-center items-center text-5xl font-black border border-black/5 shadow-inner"></div>
+                    <button onclick="window.openAvatarModal()" class="absolute bottom-0 right-0 bg-slate-900 text-white p-2.5 rounded-full border-4 border-white shadow-md active:scale-90 transition-transform">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <h1 id="profile-username" class="text-2xl font-extrabold text-slate-900 tracking-tight">-</h1>
+                <p id="profile-stats" class="text-sm font-medium text-slate-500 mt-1">0 Tabungan Aktif</p>
+                <p class="text-[10px] font-bold text-indigo-500 mt-4 uppercase tracking-widest">🔵 Cloud Storage Aktif</p>
+            </div>
+        </main>
+
+        <!-- FOOTER NAVIGATION -->
+        <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-white border-t border-slate-100 px-8 py-3 flex justify-between items-center z-10 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+            <button onclick="window.switchView('view-home', 'nav-home')" class="nav-btn flex flex-col items-center gap-1 text-indigo-600 transition-all" id="nav-home">
+                <i data-lucide="home" class="w-6 h-6"></i>
+                <span class="text-[10px] font-black uppercase tracking-tighter">Beranda</span>
+            </button>
+            <button onclick="window.switchView('view-profile', 'nav-profile')" class="nav-btn flex flex-col items-center gap-1 text-slate-300 transition-all" id="nav-profile">
+                <i data-lucide="user" class="w-6 h-6"></i>
+                <span class="text-[10px] font-black uppercase tracking-tighter">Profil</span>
+            </button>
+        </nav>
+
+        <!-- MODAL OVERLAY -->
+        <div id="modal-overlay" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[40] hidden max-w-[480px] mx-auto transition-all" onclick="window.closeAllModals()"></div>
+
+        <!-- ONBOARDING -->
+        <div id="modal-onboarding" class="fixed inset-0 z-[60] flex items-center justify-center p-8 hidden bg-white max-w-[480px] mx-auto">
+            <div class="w-full text-center">
+                <div class="w-28 h-28 bg-indigo-50 rounded-full mx-auto flex items-center justify-center mb-10 shadow-inner border border-indigo-100">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2830/2830284.png" alt="Logo" class="w-16 h-16">
+                </div>
+                <h2 class="text-3xl font-black text-slate-900 mb-3 tracking-tight">Mulai Menabung!</h2>
+                <p class="text-slate-400 font-medium text-sm mb-10">Data ini tersimpan di Cloud agar kamu bisa berbagi tabungan dengan siapa pun.</p>
+                <div class="text-left mb-8">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Nama Lengkap</label>
+                    <input type="text" id="onboarding-name" placeholder="Leonardo Suprayogi" class="w-full p-5 bg-slate-50 border border-slate-200 rounded-[1.25rem] font-bold text-xl outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all">
+                </div>
+                <button onclick="window.saveOnboardingName()" class="w-full py-5 bg-premium text-white font-black text-lg rounded-[1.5rem] shadow-xl shadow-indigo-200 active:scale-95 transition-transform">Masuk Aplikasi</button>
+            </div>
+        </div>
+
+        <!-- MANAGE BOTTOM SHEET -->
+        <div id="modal-manage" class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-white rounded-t-[2.5rem] z-[50] transform translate-y-full transition-transform duration-300 pb-safe shadow-[0_-20px_50px_rgba(0,0,0,0.1)]">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-5 mb-8"></div>
+            <div class="px-8 pb-8 space-y-4">
+                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Pilihan Pengaturan</h3>
+                <button onclick="window.openShareOptions()" class="w-full flex items-center justify-between p-5 rounded-2xl border border-slate-100 bg-slate-50 active:bg-white transition-colors">
+                    <div class="flex items-center gap-4">
+                        <div class="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl"><i data-lucide="link" class="w-5 h-5"></i></div>
+                        <span class="font-bold text-slate-800">Bagikan Tabungan</span>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
+                </button>
+                <button onclick="window.deleteCurrentRoom()" class="w-full flex items-center p-5 rounded-2xl bg-rose-50 border border-rose-100 mt-4 active:scale-[0.98] transition-transform">
+                    <div class="p-2.5 bg-rose-100 text-rose-600 rounded-xl mr-4"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
+                    <span class="font-bold text-rose-600">Hapus Permanen</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SHARE MODAL -->
+        <div id="modal-share" class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-white rounded-t-[2.5rem] z-[55] transform translate-y-full transition-transform duration-300 pb-safe">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="font-black text-2xl text-slate-900 tracking-tight">Bagikan</h3>
+                    <button onclick="window.closeAllModals()" class="p-2 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
+                </div>
+                <div class="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex justify-between items-center mb-10 shadow-inner">
+                    <span class="text-xs font-bold text-slate-500 truncate mr-4" id="share-link-text">Membuat link...</span>
+                    <button onclick="window.copyShareLink()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-black shadow-lg shadow-indigo-100 active:scale-95 transition-transform flex items-center gap-2">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin
+                    </button>
+                </div>
+                <button onclick="window.closeAllModals()" class="w-full py-5 bg-slate-900 text-white font-black text-lg rounded-[1.5rem]">Selesai</button>
+            </div>
+        </div>
+
+        <!-- TRANSACTION MODAL -->
+        <div id="modal-transaction" class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-white rounded-t-[2.5rem] z-[50] transform translate-y-full transition-transform duration-300 shadow-2xl">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 id="trx-title" class="font-black text-2xl">Nominal</h3>
+                    <button onclick="window.closeAllModals()" class="p-2 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <input type="hidden" id="trx-type" value="in">
+                <div class="relative mb-10">
+                    <span class="absolute left-0 top-1 text-3xl font-black text-slate-300">Rp</span>
+                    <input type="text" id="trx-amount" inputmode="numeric" placeholder="0" class="money-input w-full pl-14 text-5xl font-black text-slate-900 border-b-4 border-indigo-100 pb-3 focus:outline-none focus:border-indigo-500 bg-transparent transition-colors">
+                </div>
+                <div class="space-y-6 mb-10">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Penyetor</label>
+                        <input type="text" id="trx-user-display" disabled class="w-full p-4 bg-slate-100 rounded-2xl font-bold text-slate-500 border-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Catatan (Opsional)</label>
+                        <input type="text" id="trx-note" placeholder="Misal: Sisa jajan..." class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-500/5 border border-slate-100">
+                    </div>
+                </div>
+                <button onclick="window.handleTransactionSubmit()" id="trx-btn" class="w-full py-5 bg-premium text-white font-black text-lg rounded-[1.5rem] shadow-2xl shadow-indigo-100 active:scale-95 transition-transform">Konfirmasi Transaksi</button>
+            </div>
+        </div>
+
+        <!-- AVATAR MODAL -->
+        <div id="modal-avatar" class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-white rounded-t-[2.5rem] z-[50] transform translate-y-full transition-transform duration-300">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="font-black text-2xl">Personalisasi</h3>
+                    <button onclick="window.closeAllModals()" class="p-2 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="mb-8">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Warna Latar</label>
+                    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2" id="color-options"></div>
+                </div>
+                <div class="mb-10">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Pilih Karakter</label>
+                    <div class="grid grid-cols-5 gap-3" id="emoji-options"></div>
+                </div>
+                <button onclick="window.saveAvatarSelection()" class="w-full py-5 bg-slate-900 text-white font-black text-lg rounded-[1.5rem]">Simpan Perubahan</button>
+            </div>
+        </div>
+
+        <!-- CELEBRATION -->
+        <div id="modal-celebration" class="fixed inset-0 z-[70] flex items-center justify-center p-8 hidden bg-slate-950/80 backdrop-blur-md max-w-[480px] mx-auto">
+            <div class="w-full bg-white rounded-[3rem] p-10 text-center shadow-2xl">
+                <div class="w-24 h-24 bg-amber-50 rounded-full mx-auto flex items-center justify-center text-amber-500 mb-8 border border-amber-100 relative">
+                    <i data-lucide="trophy" class="w-12 h-12 relative z-10"></i>
+                    <div class="absolute top-0 right-0 w-4 h-4 bg-indigo-500 rounded-full celeb-ping"></div>
+                </div>
+                <h2 class="text-3xl font-black text-slate-900 mb-4 tracking-tight">Luar Biasa!</h2>
+                <p class="text-slate-500 font-medium mb-10">Tabungan <strong id="celeb-room-name" class="text-indigo-600"></strong> kamu sudah lunas 100%! Hebat!</p>
+                <button onclick="window.closeAllModals()" class="w-full py-5 bg-premium text-white font-black text-lg rounded-[1.5rem] shadow-xl">Mantap!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUPTlI50-ZrTwokK9A9S7MJr5iCmqqyT4",
+            authDomain: "tabungan-bersama-e48da.firebaseapp.com",
+            projectId: "tabungan-bersama-e48da",
+            storageBucket: "tabungan-bersama-e48da.firebasestorage.app",
+            messagingSenderId: "984749032676",
+            appId: "1:984749032676:web:eee0cff2200445e927d8f1"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- GLOBAL STATE ---
+        const DB_KEY = 'tabungan_app_v5_final_fix';
+        let appData = JSON.parse(localStorage.getItem(DB_KEY)) || {
+            user: '',
+            avatar: { emoji: '', colorClass: 'bg-indigo-100', textClass: 'text-indigo-700' },
+            joinedRooms: []
+        };
+        let globalRooms = [];
+        let globalHistory = [];
+        let currentRoomId = null;
+        let roomToDelete = null;
+        let isBalanceHidden = false;
+
+        const modalIds = ['modal-transaction', 'modal-manage', 'modal-share', 'modal-avatar', 'modal-celebration'];
+
+        // --- GLOBAL HELPERS ---
+        window.saveLocal = () => localStorage.setItem(DB_KEY, JSON.stringify(appData));
+        
+        window.showToast = (msg) => {
+            const t = document.getElementById('toast');
+            if(!t) return;
+            t.innerText = msg;
+            t.classList.add('toast-visible');
+            setTimeout(() => t.classList.remove('toast-visible'), 2500);
+        };
+
+        window.closeAllModals = () => {
+            modalIds.forEach(id => {
+                const m = document.getElementById(id);
+                if(m) m.classList.add('translate-y-full');
+            });
+            const overlay = document.getElementById('modal-overlay');
+            if(overlay) overlay.classList.add('hidden');
+        };
+
+        window.showModal = (id) => {
+            const overlay = document.getElementById('modal-overlay');
+            const m = document.getElementById(id);
+            if(overlay) overlay.classList.remove('hidden');
+            if(m) {
+                setTimeout(() => {
+                    m.classList.remove('translate-y-full');
+                }, 10);
+            }
+        };
+
+        window.switchView = (viewId, navId = null) => {
+            const views = ['view-home', 'view-detail', 'view-create', 'view-profile'];
+            views.forEach(v => {
+                const el = document.getElementById(v);
+                if(el) el.classList.add('hidden');
+            });
+
+            const targetView = document.getElementById(viewId);
+            if(targetView) {
+                targetView.classList.remove('hidden');
+            }
+
+            const nav = document.getElementById('bottom-nav');
+            if(nav) {
+                if (['view-detail', 'view-create'].includes(viewId)) nav.classList.add('hidden');
+                else nav.classList.remove('hidden');
+            }
+
+            if(navId) {
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.replace('text-indigo-600', 'text-slate-300');
+                    const span = btn.querySelector('span');
+                    if(span) span.classList.replace('font-black', 'font-bold');
+                });
+                const active = document.getElementById(navId);
+                if(active) {
+                    active.classList.replace('text-slate-300', 'text-indigo-600');
+                    const span = active.querySelector('span');
+                    if(span) span.classList.replace('font-bold', 'font-black');
+                }
+            }
+            window.scrollTo(0,0);
+        };
+
+        window.historyBackOverride = (view) => window.switchView(view, 'nav-home');
+
+        // --- SYNC ENGINE ---
+        function startRealtimeSync() {
+            onSnapshot(collection(db, "rooms"), (snap) => {
+                globalRooms = [];
+                snap.forEach(doc => {
+                    const r = doc.data();
+                    if(appData.joinedRooms.includes(r.id)) globalRooms.push(r);
+                });
+                globalRooms.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                updateUI();
+                if(currentRoomId) refreshRoomUI(currentRoomId);
+            }, (err) => {
+                console.error("Firestore error:", err);
+            });
+
+            onSnapshot(collection(db, "history"), (snap) => {
+                globalHistory = [];
+                snap.forEach(doc => {
+                    const h = doc.data();
+                    if(appData.joinedRooms.includes(h.roomId)) globalHistory.push(h);
+                });
+                globalHistory.sort((a,b) => b.timestamp - a.timestamp);
+                updateUI();
+                if(currentRoomId) refreshRoomUI(currentRoomId);
+            });
+        }
+
+        window.saveOnboardingName = () => {
+            const nameEl = document.getElementById('onboarding-name');
+            if (!nameEl) return;
+            const name = nameEl.value.trim();
+            if(!/^[a-zA-Z\s]+$/.test(name)) return alert("Nama hanya boleh berisi huruf dan spasi.");
+            appData.user = name;
+            window.saveLocal();
+            const modal = document.getElementById('modal-onboarding');
+            if(modal) modal.classList.add('hidden');
+            startRealtimeSync();
+            updateUI();
+        };
+
+        window.handleCreateRoom = async () => {
+            const nameEl = document.getElementById('create-name');
+            if(!nameEl) return;
+            const name = nameEl.value.trim();
+            if(!name) return alert("Masukkan nama tabungan.");
+            
+            const roomId = 'room_' + Date.now();
+            const toggleTgt = document.getElementById('toggle-target');
+            const targetInp = document.getElementById('create-target');
+            const targetVal = (toggleTgt && toggleTgt.checked && targetInp) ? parseInt(targetInp.value.replace(/\D/g, '')) : 0;
+            
+            const newRoom = {
+                id: roomId, name: name, balance: 0, 
+                hasTarget: targetVal > 0, target: targetVal,
+                isArchived: false, createdAt: new Date().toISOString()
+            };
+
+            appData.joinedRooms.push(roomId);
+            window.saveLocal();
+
+            try {
+                await setDoc(doc(db, "rooms", roomId), newRoom);
+                window.switchView('view-home', 'nav-home');
+                window.showToast("Tabungan berhasil dibuat!");
+                nameEl.value = '';
+                if(targetInp) targetInp.value = '';
+            } catch(e) {
+                alert("Koneksi gagal. Cek koneksi internet anda.");
+            }
+        };
+
+        window.openRoomDetail = (id) => {
+            currentRoomId = id;
+            refreshRoomUI(id);
+            window.switchView('view-detail');
+        };
+
+        function refreshRoomUI(id) {
+            const r = globalRooms.find(x => x.id === id);
+            if(!r) return;
+            
+            const detailTitle = document.getElementById('detail-title');
+            const detailBalance = document.getElementById('detail-balance');
+            if(detailTitle) detailTitle.innerText = r.name;
+            if(detailBalance) detailBalance.innerText = 'Rp ' + r.balance.toLocaleString('id-ID');
+
+            const targetBox = document.getElementById('detail-target-container');
+            if(targetBox) {
+                if(r.hasTarget) {
+                    targetBox.classList.remove('hidden');
+                    const progressText = document.getElementById('detail-progress-text');
+                    const progressBar = document.getElementById('detail-progress-bar');
+                    if(progressText) progressText.innerText = `Rp ${r.balance.toLocaleString('id-ID')} / ${r.target.toLocaleString('id-ID')}`;
+                    const pct = Math.min(Math.round((r.balance/r.target)*100), 100);
+                    if(progressBar) progressBar.style.width = pct + '%';
+                } else {
+                    targetBox.classList.add('hidden');
+                }
+            }
+
+            const list = document.getElementById('detail-history-list');
+            if(list) {
+                list.innerHTML = '';
+                const filtered = globalHistory.filter(h => h.roomId === id);
+                if(filtered.length === 0) {
+                    list.innerHTML = `<p class="text-xs text-slate-400 italic py-4">Belum ada transaksi.</p>`;
+                } else {
+                    filtered.forEach(h => {
+                        const isIn = h.type === 'in';
+                        list.innerHTML += `
+                            <div class="relative pl-8">
+                                <span class="absolute -left-[20px] top-1 ${isIn ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'} p-1.5 rounded-full border-4 border-slate-50">
+                                    <i data-lucide="${isIn ? 'arrow-down' : 'arrow-up'}" class="w-3.5 h-3.5"></i>
+                                </span>
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-sm font-black text-slate-800">${h.userName}</p>
+                                        <p class="text-[10px] text-slate-400 font-bold uppercase">${h.date}</p>
+                                    </div>
+                                    <p class="text-sm font-black ${isIn ? 'text-emerald-600' : 'text-rose-600'}">${isIn?'+':'-'} Rp ${h.amount.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            }
+            lucide.createIcons();
+        }
+
+        window.openTransactionModal = (type) => {
+            const amountInput = document.getElementById('trx-amount');
+            const userDisplay = document.getElementById('trx-user-display');
+            const typeInput = document.getElementById('trx-type');
+            const titleInput = document.getElementById('trx-title');
+            
+            if(amountInput) amountInput.value = '';
+            if(typeInput) typeInput.value = type === 'nabung' ? 'in' : 'out';
+            if(titleInput) titleInput.innerText = type === 'nabung' ? 'Nabung' : 'Tarik';
+            if(userDisplay) userDisplay.value = appData.user;
+            window.showModal('modal-transaction');
+        };
+
+        window.handleTransactionSubmit = async () => {
+            const r = globalRooms.find(x => x.id === currentRoomId);
+            const amountEl = document.getElementById('trx-amount');
+            if (!r || !amountEl) return;
+
+            const amountStr = amountEl.value.replace(/\D/g, '');
+            const amount = parseInt(amountStr);
+            if(!amount) return;
+
+            const typeInp = document.getElementById('trx-type');
+            const type = typeInp ? typeInp.value : 'in';
+
+            let newBal = r.balance;
+            if(type === 'in') {
+                if(r.hasTarget && r.balance + amount > r.target) return alert("Nominal melebihi sisa target!");
+                newBal += amount;
+            } else {
+                if(amount > r.balance) return alert("Saldo tidak cukup.");
+                newBal -= amount;
+            }
+
+            const trxId = 'trx_' + Date.now();
+            const noteEl = document.getElementById('trx-note');
+            const note = noteEl ? noteEl.value.trim() : '';
+            const h = {
+                id: trxId, roomId: currentRoomId, roomName: r.name,
+                type: type, amount: amount, userName: appData.user, note: note,
+                date: new Date().toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}), 
+                timestamp: Date.now()
+            };
+
+            try {
+                await updateDoc(doc(db, "rooms", currentRoomId), { balance: newBal });
+                await setDoc(doc(db, "history", trxId), h);
+                window.closeAllModals();
+                if(r.hasTarget && newBal === r.target) {
+                    const celebName = document.getElementById('celeb-room-name');
+                    if(celebName) celebName.innerText = r.name;
+                    window.showModal('modal-celebration');
+                }
+            } catch(e) { 
+                alert("Error database."); 
+            }
+        };
+
+        window.completeAndArchiveRoom = async () => {
+            try {
+                await updateDoc(doc(db, "rooms", currentRoomId), { isArchived: true });
+                window.closeAllModals();
+                window.switchView('view-home', 'nav-home');
+            } catch(e) {
+                alert("Gagal mengarsipkan.");
+            }
+        };
+
+        // --- SHARING ENGINE FIX ---
+        window.openManageModal = (id) => {
+            roomToDelete = id;
+            window.showModal('modal-manage');
+        };
+
+        window.openShareOptions = () => {
+            const mManage = document.getElementById('modal-manage');
+            if(mManage) mManage.classList.add('translate-y-full');
+            
+            const baseUrl = window.location.origin + window.location.pathname;
+            const fullLink = baseUrl + "?id=" + roomToDelete;
+            
+            const shareText = document.getElementById('share-link-text');
+            if(shareText) {
+                shareText.innerText = window.location.host + "/?id=" + roomToDelete.substring(0, 10) + "...";
+                shareText.setAttribute('data-link', fullLink);
+            }
+
+            setTimeout(() => {
+                window.showModal('modal-share');
+            }, 350);
+        };
+
+        window.copyShareLink = () => {
+            const shareText = document.getElementById('share-link-text');
+            if(!shareText) return;
+            const link = shareText.getAttribute('data-link');
+            const el = document.createElement('textarea');
+            el.value = link;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            window.showToast("Tautan berhasil disalin!");
+            window.closeAllModals();
+        };
+
+        window.deleteCurrentRoom = async () => {
+            if(!confirm("Yakin ingin menghapus ini untuk SEMUA orang?")) return;
+            try {
+                await deleteDoc(doc(db, "rooms", roomToDelete));
+                appData.joinedRooms = appData.joinedRooms.filter(x => x !== roomToDelete);
+                window.saveLocal();
+                window.closeAllModals();
+                window.showToast("Berhasil dihapus.");
+            } catch(e) { alert("Gagal menghapus."); }
+        };
+
+        // --- UI RENDER ENGINE ---
+        function updateUI() {
+            if(!appData.user) return;
+
+            const homeAv = document.getElementById('home-avatar');
+            const profAv = document.getElementById('profile-avatar');
+            const homeUser = document.getElementById('home-username');
+            const profUser = document.getElementById('profile-username');
+            const trxUser = document.getElementById('trx-user-display');
+            const totalBalEl = document.getElementById('total-balance');
+            const profStats = document.getElementById('profile-stats');
+
+            const initial = appData.user.charAt(0).toUpperCase();
+            const displayChar = appData.avatar.emoji || initial;
+            
+            if(homeAv) {
+                homeAv.className = `w-12 h-12 rounded-full flex items-center justify-center text-xl font-black shadow-inner border border-black/5 ${appData.avatar.colorClass} ${appData.avatar.textClass}`;
+                homeAv.innerText = displayChar;
+            }
+            if(profAv) {
+                profAv.className = `w-24 h-24 rounded-full flex justify-center items-center text-5xl font-black shadow-inner border border-black/5 ${appData.avatar.colorClass} ${appData.avatar.textClass}`;
+                profAv.innerText = displayChar;
+            }
+            
+            if(homeUser) homeUser.innerText = appData.user;
+            if(profUser) profUser.innerText = appData.user;
+            if(trxUser) trxUser.value = appData.user;
+
+            const active = globalRooms.filter(x => !x.isArchived);
+            const total = active.reduce((acc, x) => acc + x.balance, 0);
+            
+            if(totalBalEl) {
+                totalBalEl.setAttribute('data-value', total);
+                if(!isBalanceHidden) totalBalEl.innerText = 'Rp ' + total.toLocaleString('id-ID');
+            }
+            
+            if(profStats) profStats.innerText = `${active.length} Tabungan Aktif`;
+
+            const container = document.getElementById('rooms-container');
+            if(container) {
+                container.innerHTML = '';
+                if(active.length === 0) {
+                    container.innerHTML = `<div class="text-center py-10 bg-white rounded-[2rem] border border-slate-100"><i data-lucide="wallet" class="mx-auto w-10 h-10 text-slate-200 mb-2"></i><p class="text-slate-400 font-bold text-xs uppercase tracking-widest">Belum ada tabungan</p></div>`;
+                } else {
+                    active.forEach(r => {
+                        const pct = r.hasTarget ? Math.min(Math.round((r.balance/r.target)*100), 100) : 0;
+                        container.innerHTML += `
+                            <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm active:scale-[0.98] transition-all" onclick="window.openRoomDetail('${r.id}')">
+                                <div class="flex justify-between items-start mb-6">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 flex items-center justify-center rounded-2xl"><i data-lucide="target" class="w-6 h-6"></i></div>
+                                        <h3 class="font-black text-slate-800 text-lg">${r.name}</h3>
+                                    </div>
+                                    <button onclick="event.stopPropagation(); window.openManageModal('${r.id}')" class="text-slate-300 p-2"><i data-lucide="more-vertical"></i></button>
+                                </div>
+                                <div class="flex justify-between items-end">
+                                    <div>
+                                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Terkumpul</p>
+                                        <p class="text-2xl font-black text-slate-900">Rp ${r.balance.toLocaleString('id-ID')}</p>
+                                    </div>
+                                    ${r.hasTarget ? `<div class="text-right"><p class="text-[20px] font-black text-indigo-600">${pct}%</p></div>` : ''}
+                                </div>
+                                ${r.hasTarget ? `<div class="w-full bg-slate-100 h-2.5 rounded-full mt-4 overflow-hidden"><div class="bg-indigo-600 h-full rounded-full transition-all duration-1000" style="width:${pct}%"></div></div>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+            }
+
+            // Update Mutasi
+            const now = new Date();
+            const mo = now.toLocaleDateString('id-ID', {month:'short', year:'numeric'});
+            let mIn = 0, mOut = 0;
+            globalHistory.forEach(h => {
+                if(h.date && h.date.includes(mo)) {
+                    if(h.type === 'in') mIn += h.amount;
+                    else mOut += h.amount;
+                }
+            });
+            const inEl = document.getElementById('mutasi-in');
+            const outEl = document.getElementById('mutasi-out');
+            if(inEl) inEl.innerText = 'Rp ' + mIn.toLocaleString('id-ID');
+            if(outEl) outEl.innerText = 'Rp ' + mOut.toLocaleString('id-ID');
+            
+            lucide.createIcons();
+        }
+
+        window.toggleBalance = () => {
+            isBalanceHidden = !isBalanceHidden;
+            const el = document.getElementById('total-balance');
+            const icon = document.getElementById('eye-icon');
+            if(!el || !icon) return;
+            
+            if(isBalanceHidden) {
+                el.innerText = 'Rp *********';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                el.innerText = 'Rp ' + parseInt(el.getAttribute('data-value')).toLocaleString('id-ID');
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        };
+
+        window.saveAvatarSelection = () => {
+            window.saveLocal();
+            updateUI();
+            window.closeAllModals();
+            window.showToast("Profil diperbarui!");
+        };
+
+        window.openAvatarModal = () => {
+            window.showModal('modal-avatar');
+        };
+
+        // --- INITIALIZER ---
+        window.onload = () => {
+            lucide.createIcons();
+            
+            // Generate Avatar Selection UI
+            const colorDiv = document.getElementById('color-options');
+            if(colorDiv) {
+                const COLORS = [
+                    {bg:'bg-indigo-100', txt:'text-indigo-700'}, {bg:'bg-rose-100', txt:'text-rose-700'},
+                    {bg:'bg-emerald-100', txt:'text-emerald-700'}, {bg:'bg-amber-100', txt:'text-amber-700'},
+                    {bg:'bg-purple-100', txt:'text-purple-700'}, {bg:'bg-slate-200', txt:'text-slate-700'}
+                ];
+                COLORS.forEach(c => {
+                    const b = document.createElement('button');
+                    b.className = `w-14 h-14 rounded-full border-4 ${c.bg} shrink-0 transition-all active:scale-90`;
+                    b.onclick = () => {
+                        document.querySelectorAll('#color-options button').forEach(x => x.classList.remove('selected'));
+                        b.classList.add('selected');
+                        appData.avatar.colorClass = c.bg; 
+                        appData.avatar.textClass = c.txt;
+                    };
+                    if(appData.avatar.colorClass === c.bg) b.classList.add('selected');
+                    colorDiv.appendChild(b);
+                });
+            }
+
+            const emojiDiv = document.getElementById('emoji-options');
+            if(emojiDiv) {
+                const EMOJIS = ['A', '🦊', 'Sushi', '🍔', '🍕', '🐼', '🐯', '🤖', '👾', '👻'];
+                EMOJIS.forEach(e => {
+                    const b = document.createElement('button');
+                    b.className = `emoji-btn p-4 bg-slate-50 rounded-2xl text-2xl transition-all border-2 border-transparent active:scale-90 flex items-center justify-center`;
+                    
+                    if (e === 'Sushi') b.innerText = '🍣';
+                    else b.innerText = e === 'A' ? 'Ab' : e;
+
+                    b.onclick = () => {
+                        document.querySelectorAll('#emoji-options button').forEach(x => x.classList.remove('selected'));
+                        b.classList.add('selected');
+                        appData.avatar.emoji = (e === 'A') ? '' : b.innerText;
+                    };
+                    if((e === 'A' && !appData.avatar.emoji) || (b.innerText === appData.avatar.emoji)) b.classList.add('selected');
+                    emojiDiv.appendChild(b);
+                });
+            }
+
+            // Money Input formatting
+            document.querySelectorAll('.money-input').forEach(input => {
+                input.addEventListener('input', function() {
+                    const val = this.value.replace(/\D/g, '');
+                    this.value = val ? parseInt(val).toLocaleString('id-ID') : '';
+                });
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedId = urlParams.get('id');
+            if(sharedId && !appData.joinedRooms.includes(sharedId)) {
+                appData.joinedRooms.push(sharedId);
+                window.saveLocal();
+                window.showToast("Berhasil bergabung!");
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            if(!appData.user) {
+                const onboarding = document.getElementById('modal-onboarding');
+                if(onboarding) onboarding.classList.remove('hidden');
+            } else {
+                startRealtimeSync();
+                updateUI();
+            }
+        };
+    </script>
+</body>
+</html>
